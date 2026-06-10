@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer create-project *)",
+      "Bash(php --version)",
+      "Bash(composer install *)",
+      "Bash(rm -rf backend)",
+      "Bash(php artisan *)",
+      "Bash(mkdir -p backend)",
+      "Bash(composer init *)",
+      "Bash(composer require *)",
+      "Bash(php test_account_query.php)",
+      "Bash(npm run *)"
+    ]
+  }
+}

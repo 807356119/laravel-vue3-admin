@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账户列表API测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #67C23A;
+            font-weight: bold;
+        }
+        .error {
+            color: #F56C6C;
+            font-weight: bold;
+        }
+        .info {
+            color: #409EFF;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 账户列表API调试工具</h1>
+
+        <div class="step">
+            <h3>步骤1: 检查Token</h3>
+            <button onclick="checkToken()">检查Token</button>
+            <div id="token-result" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>步骤2: 登录获取Token</h3>
+            <input type="email" id="email" placeholder="邮箱" value="admin@example.com" style="padding: 8px; width: 200px; margin-right: 10px;">
+            <input type="password" id="password" placeholder="密码" value="123456" style="padding: 8px; width: 150px; margin-right: 10px;">
+            <button onclick="login()">登录</button>
+            <div id="login-result" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>步骤3: 测试账户列表API</h3>
+            <button onclick="testAccountList()">获取账户列表</button>
+            <button onclick="testAccountListWithParams()">带参数查询</button>
+            <div id="account-result" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>步骤4: 创建测试账户</h3>
+            <button onclick="createTestAccount()">创建测试账户</button>
+            <div id="create-result" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h3>步骤5: 检查用户信息</h3>
+            <button onclick="checkUserInfo()">获取用户信息</button>
+            <div id="user-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api';
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            console.log(message);
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).innerHTML = '';
+        }
+
+        function checkToken() {
+            clearLog('token-result');
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+
+            if (token) {
+                log('token-result', '✅ Token存在', 'success');
+                log('token-result', `Token: ${token.substring(0, 50)}...`);
+
+                if (user) {
+                    const userObj = JSON.parse(user);
+                    log('token-result', `用户ID: ${userObj.id}`, 'success');
+                    log('token-result', `用户名: ${userObj.name}`, 'success');
+                    log('token-result', `用户信息: ${user}`);
+                }
+            } else {
+                log('token-result', '❌ Token不存在，请先登录', 'error');
+            }
+        }
+
+        async function login() {
+            clearLog('login-result');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            log('login-result', '正在登录...');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                log('login-result', `响应状态: ${response.status}`);
+                log('login-result', `响应数据: ${JSON.stringify(data, null, 2)}`);
+
+                if (response.ok && data.data && data.data.token) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('user', JSON.stringify(data.data.user));
+                    if (data.data.permissions) {
+                        localStorage.setItem('permissions', JSON.stringify(data.data.permissions));
+                    }
+                    log('login-result', '✅ 登录成功！Token已保存', 'success');
+                    log('login-result', `用户ID: ${data.data.user.id}`, 'success');
+                } else {
+                    log('login-result', '❌ 登录失败', 'error');
+                }
+            } catch (error) {
+                log('login-result', `❌ 请求错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAccountList() {
+            clearLog('account-result');
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                log('account-result', '❌ 请先登录获取Token', 'error');
+                return;
+            }
+
+            log('account-result', '正在请求账户列表...');
+            log('account-result', `Token: ${token.substring(0, 50)}...`);
+
+            try {
+                const response = await fetch(`${API_BASE}/accounts?page=1&size=12`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                log('account-result', `响应状态: ${response.status}`);
+
+                const data = await response.json();
+                log('account-result', `响应数据: ${JSON.stringify(data, null, 2)}`);
+
+                if (response.ok) {
+                    if (data.data && data.data.list) {
+                        log('account-result', `✅ 成功！找到 ${data.data.list.length} 个账户`, 'success');
+                        log('account-result', `总数: ${data.data.pagination.total}`, 'success');
+
+                        if (data.data.list.length === 0) {
+                            log('account-result', '⚠️ 列表为空，可能原因：', 'error');
+                            log('account-result', '  1. 当前用户没有创建任何账户');
+                            log('account-result', '  2. 筛选条件过滤了所有数据');
+                            log('account-result', '  3. user_id 不匹配');
+                        }
+                    } else {
+                        log('account-result', '❌ 响应数据格式不正确', 'error');
+                    }
+                } else {
+                    log('account-result', `❌ 请求失败: ${data.message || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                log('account-result', `❌ 请求错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAccountListWithParams() {
+            clearLog('account-result');
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                log('account-result', '❌ 请先登录获取Token', 'error');
+                return;
+            }
+
+            log('account-result', '正在请求账户列表（带参数）...');
+
+            try {
+                const response = await fetch(`${API_BASE}/accounts?page=1&size=100`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                log('account-result', `响应: ${JSON.stringify(data, null, 2)}`);
+
+                if (response.ok && data.data) {
+                    log('account-result', `✅ 成功！共 ${data.data.list.length} 条数据`, 'success');
+                }
+            } catch (error) {
+                log('account-result', `❌ 错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function createTestAccount() {
+            clearLog('create-result');
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                log('create-result', '❌ 请先登录获取Token', 'error');
+                return;
+            }
+
+            const testData = {
+                title: '测试账户_' + Date.now(),
+                type: 'bank',
+                account_name: '张三',
+                account_number: '6222000000000000',
+                password: 'test123456',
+                bank_name: '工商银行',
+                description: '测试创建的账户',
+                is_favorite: false
+            };
+
+            log('create-result', '正在创建测试账户...');
+            log('create-result', `数据: ${JSON.stringify(testData, null, 2)}`);
+
+            try {
+                const response = await fetch(`${API_BASE}/accounts`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                const data = await response.json();
+                log('create-result', `响应状态: ${response.status}`);
+                log('create-result', `响应数据: ${JSON.stringify(data, null, 2)}`);
+
+                if (response.ok) {
+                    log('create-result', '✅ 创建成功！', 'success');
+                    log('create-result', '现在可以重新测试列表查询了');
+                } else {
+                    log('create-result', `❌ 创建失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                log('create-result', `❌ 请求错误: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkUserInfo() {
+            clearLog('user-result');
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                log('user-result', '❌ 请先登录获取Token', 'error');
+                return;
+            }
+
+            log('user-result', '正在获取用户信息...');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                log('user-result', `响应: ${JSON.stringify(data, null, 2)}`);
+
+                if (response.ok && data.data) {
+                    log('user-result', `✅ 当前用户ID: ${data.data.id}`, 'success');
+                    log('user-result', `✅ 用户名: ${data.data.name}`, 'success');
+                    log('user-result', `✅ 邮箱: ${data.data.email}`, 'success');
+                }
+            } catch (error) {
+                log('user-result', `❌ 错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时检查token
+        window.onload = function() {
+            checkToken();
+        };
+    </script>
+</body>
+</html>
